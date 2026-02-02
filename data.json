@@ -1,0 +1,33 @@
+{
+  "users": {
+    "491702508486656010": {
+      "xp": 15,
+      "level": 1,
+      "tasks": [
+        {
+          "id": 1,
+          "text": "work on bot 100",
+          "xp": 10,
+          "done": true
+        },
+        {
+          "id": 2,
+          "text": "Gacha Dailies",
+          "xp": 5,
+          "done": true,
+          "daily": true,
+          "date": "2026-02-02"
+        },
+        {
+          "id": 3,
+          "text": "prts initiated",
+          "xp": 1,
+          "done": false
+        }
+      ]
+    }
+  },
+  "meta": {
+    "lastDailyDate": "2026-02-02"
+  }
+}
