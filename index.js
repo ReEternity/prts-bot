@@ -26,6 +26,10 @@ const DEFAULT_PROFILE = {
    history: []
 };
 
+const DEFAULT_META = {
+   timers: []
+};
+
 const DAILY_TASKS = [
    { text: "Gacha Dailies", xp: 5 }
 ];
@@ -61,6 +65,53 @@ const calculateLevel = (xp) => {
 
 const getTodayKey = () => {
    return new Date().toLocaleDateString("en-CA", { timeZone: TIMEZONE });
+};
+
+const checkTimers = async (clientInstance) => {
+   const data = loadData();
+   data.meta = data.meta || DEFAULT_META;
+   const now = new Date();
+   const timers = data.meta.timers || [];
+   const timersCopy = [...timers];
+
+   for (let i = timersCopy.length - 1; i >= 0; i--) {
+      const timer = timersCopy[i];
+      const eventTime = new Date(timer.timestamp);
+
+      const msUntilEvent = eventTime - now;
+      const hoursUntil = msUntilEvent / (1000 * 60 * 60);
+      const minutesUntil = msUntilEvent / (1000 * 60);
+
+      const user = await clientInstance.users.fetch(timer.userId).catch(() => null);
+      if (!user) continue;
+
+      if (!timer.notified12h && hoursUntil <= 12 && hoursUntil > 11.9) {
+         await user.send(`⏰ **12 hours until "${timer.name}"**`).catch(() => {});
+         timer.notified12h = true;
+         data.meta.timers = timersCopy;
+         saveData(data);
+      }
+
+      if (!timer.notified30m && minutesUntil <= 30 && minutesUntil > 29.9) {
+         await user.send(`⏰ **30 minutes until "${timer.name}"**`).catch(() => {});
+         timer.notified30m = true;
+         data.meta.timers = timersCopy;
+         saveData(data);
+      }
+
+      if (msUntilEvent <= 0 && !timer.notifiedExact) {
+         await user.send(`🔔 **Event now: "${timer.name}"**`).catch(() => {});
+         timer.notifiedExact = true;
+         data.meta.timers = timersCopy;
+         saveData(data);
+      }
+
+      if (msUntilEvent < -60000) {
+         timersCopy.splice(i, 1);
+         data.meta.timers = timersCopy;
+         saveData(data);
+      }
+   }
 };
 
 const runDailyTasks = async (clientInstance) => {
@@ -147,6 +198,48 @@ const commandDefinitions = [
       .setName("history")
       .setDescription("Show your last 100 completed tasks"),
    new SlashCommandBuilder()
+      .setName("timer")
+      .setDescription("Timer/Event commands")
+      .addSubcommand((subcommand) =>
+         subcommand
+            .setName("add")
+            .setDescription("Add an event/timer")
+            .addStringOption((option) =>
+               option
+                  .setName("name")
+                  .setDescription("Event name")
+                  .setRequired(true)
+            )
+            .addStringOption((option) =>
+               option
+                  .setName("time")
+                  .setDescription("Time in format YYYY-MM-DD HH:MM (24-hour)")
+                  .setRequired(true)
+            )
+            .addStringOption((option) =>
+               option
+                  .setName("description")
+                  .setDescription("Event description (optional)")
+                  .setRequired(false)
+            )
+      )
+      .addSubcommand((subcommand) =>
+         subcommand
+            .setName("list")
+            .setDescription("List your timers")
+      )
+      .addSubcommand((subcommand) =>
+         subcommand
+            .setName("delete")
+            .setDescription("Delete a timer")
+            .addIntegerOption((option) =>
+               option
+                  .setName("id")
+                  .setDescription("Timer ID")
+                  .setRequired(true)
+            )
+      ),
+   new SlashCommandBuilder()
       .setName("status")
       .setDescription("Show your status screen"),
    new SlashCommandBuilder()
@@ -206,6 +299,13 @@ client.once("clientReady", () => {
          runDailyTasks(client);
       },
       { timezone: TIMEZONE }
+   );
+
+   cron.schedule(
+      "*/1 * * * *",
+      () => {
+         checkTimers(client);
+      }
    );
 });
 
@@ -335,11 +435,90 @@ client.on("interactionCreate", async (interaction) => {
             "/list                    → list tasks",
             "/done <id>               → complete a task and gain XP",
             "/history                 → show last 100 completed tasks",
+            "/timer add <name> <time> → add an event (format: YYYY-MM-DD HH:MM)",
+            "/timer list              → list your timers",
+            "/timer delete <id>       → delete a timer",
             "/status                       → show your status screen",
             "/help                         → show this help",
             "/hello                        → hello world"
          ].join("\n")
       );
+   }
+
+   if (interaction.commandName === "timer") {
+      const subcommand = interaction.options.getSubcommand();
+      data.meta = data.meta || DEFAULT_META;
+      data.meta.timers = data.meta.timers || [];
+
+      if (subcommand === "add") {
+         const name = interaction.options.getString("name", true);
+         const timeStr = interaction.options.getString("time", true);
+         const description = interaction.options.getString("description") || "";
+
+         const eventTime = new Date(timeStr);
+         if (isNaN(eventTime.getTime())) {
+            await interaction.reply("Invalid time format. Use: YYYY-MM-DD HH:MM");
+            return;
+         }
+
+         const now = new Date();
+         if (eventTime <= now) {
+            await interaction.reply("Event time must be in the future.");
+            return;
+         }
+
+         const nextId = data.meta.timers.length ? Math.max(...data.meta.timers.map((t) => t.id)) + 1 : 1;
+         data.meta.timers.push({
+            id: nextId,
+            name,
+            description,
+            timestamp: eventTime.toISOString(),
+            userId: interaction.user.id,
+            notified12h: false,
+            notified30m: false,
+            notifiedExact: false
+         });
+         saveData(data);
+
+         const displayDesc = description ? `\n${description}` : "";
+         await interaction.reply(`Added timer #${nextId}: "${name}" at ${eventTime.toLocaleString()}${displayDesc}`);
+         return;
+      }
+
+      if (subcommand === "list") {
+         const userTimers = data.meta.timers.filter((t) => t.userId === interaction.user.id);
+         if (userTimers.length === 0) {
+            await interaction.reply("No timers set. Add one with /timer add.");
+            return;
+         }
+
+         const lines = userTimers
+            .map((timer) => {
+               const eventTime = new Date(timer.timestamp);
+               const desc = timer.description ? ` - ${timer.description}` : "";
+               return `#${timer.id} • ${timer.name} at ${eventTime.toLocaleString()}${desc}`;
+            })
+            .join("\n");
+
+         await interaction.reply(`**Your Timers**\n${lines}`);
+         return;
+      }
+
+      if (subcommand === "delete") {
+         const timerId = interaction.options.getInteger("id", true);
+         const timerIndex = data.meta.timers.findIndex((t) => t.id === timerId && t.userId === interaction.user.id);
+
+         if (timerIndex === -1) {
+            await interaction.reply("Timer not found.");
+            return;
+         }
+
+         const deleted = data.meta.timers.splice(timerIndex, 1)[0];
+         saveData(data);
+
+         await interaction.reply(`Deleted timer: "${deleted.name}"`);
+         return;
+      }
    }
 });
 
