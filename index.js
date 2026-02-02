@@ -238,6 +238,11 @@ const commandDefinitions = [
                   .setDescription("Timer ID")
                   .setRequired(true)
             )
+      )
+      .addSubcommand((subcommand) =>
+         subcommand
+            .setName("now")
+            .setDescription("Show current time")
       ),
    new SlashCommandBuilder()
       .setName("status")
@@ -517,6 +522,12 @@ client.on("interactionCreate", async (interaction) => {
          saveData(data);
 
          await interaction.reply(`Deleted timer: "${deleted.name}"`);
+         return;
+      }
+
+      if (subcommand === "now") {
+         const now = new Date();
+         await interaction.reply(`Current time: **${now.toLocaleString()}**`);
          return;
       }
    }
