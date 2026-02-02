@@ -486,7 +486,8 @@ client.on("interactionCreate", async (interaction) => {
          saveData(data);
 
          const displayDesc = description ? `\n${description}` : "";
-         await interaction.reply(`Added timer #${nextId}: "${name}" at ${eventTime.toLocaleString()}${displayDesc}`);
+         const displayTime = eventTime.toLocaleString("en-US", { timeZone: TIMEZONE });
+         await interaction.reply(`Added timer #${nextId}: "${name}" at ${displayTime}${displayDesc}`);
          return;
       }
 
@@ -500,8 +501,9 @@ client.on("interactionCreate", async (interaction) => {
          const lines = userTimers
             .map((timer) => {
                const eventTime = new Date(timer.timestamp);
+               const timeStr = eventTime.toLocaleString("en-US", { timeZone: TIMEZONE });
                const desc = timer.description ? ` - ${timer.description}` : "";
-               return `#${timer.id} • ${timer.name} at ${eventTime.toLocaleString()}${desc}`;
+               return `#${timer.id} • ${timer.name} at ${timeStr}${desc}`;
             })
             .join("\n");
 
@@ -527,7 +529,8 @@ client.on("interactionCreate", async (interaction) => {
 
       if (subcommand === "now") {
          const now = new Date();
-         await interaction.reply(`Current time: **${now.toLocaleString()}**`);
+         const timeStr = now.toLocaleString("en-US", { timeZone: TIMEZONE });
+         await interaction.reply(`Current time: **${timeStr}**`);
          return;
       }
    }
