@@ -3,6 +3,7 @@ require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
 const cron = require("node-cron");
+const { DateTime } = require("luxon");
 const {
    Client,
    GatewayIntentBits,
@@ -460,13 +461,13 @@ client.on("interactionCreate", async (interaction) => {
          const timeStr = interaction.options.getString("time", true);
          const description = interaction.options.getString("description") || "";
 
-         const eventTime = new Date(timeStr);
-         if (isNaN(eventTime.getTime())) {
+         const eventTime = DateTime.fromFormat(timeStr, "yyyy-MM-dd HH:mm", { zone: TIMEZONE });
+         if (!eventTime.isValid) {
             await interaction.reply("Invalid time format. Use: YYYY-MM-DD HH:MM");
             return;
          }
 
-         const now = new Date();
+         const now = DateTime.now().setZone(TIMEZONE);
          if (eventTime <= now) {
             await interaction.reply("Event time must be in the future.");
             return;
@@ -477,7 +478,7 @@ client.on("interactionCreate", async (interaction) => {
             id: nextId,
             name,
             description,
-            timestamp: eventTime.toISOString(),
+            timestamp: eventTime.toISO(),
             userId: interaction.user.id,
             notified12h: false,
             notified30m: false,
@@ -486,7 +487,7 @@ client.on("interactionCreate", async (interaction) => {
          saveData(data);
 
          const displayDesc = description ? `\n${description}` : "";
-         const displayTime = eventTime.toLocaleString("en-US", { timeZone: TIMEZONE });
+         const displayTime = eventTime.toLocaleString(DateTime.DATETIME_MED);
          await interaction.reply(`Added timer #${nextId}: "${name}" at ${displayTime}${displayDesc}`);
          return;
       }
