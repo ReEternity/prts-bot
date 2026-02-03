@@ -23,11 +23,19 @@
           "text": "prts initiated",
           "xp": 1,
           "done": false
+        },
+        {
+          "id": 4,
+          "text": "Gacha Dailies",
+          "xp": 5,
+          "done": false,
+          "daily": true,
+          "date": "2026-02-03"
         }
       ]
     }
   },
   "meta": {
-    "lastDailyDate": "2026-02-02"
+    "lastDailyDate": "2026-02-03"
   }
 }

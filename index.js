@@ -65,7 +65,7 @@ const calculateLevel = (xp) => {
 };
 
 const getTodayKey = () => {
-   return new Date().toLocaleDateString("en-CA", { timeZone: TIMEZONE });
+   return DateTime.now().setZone(TIMEZONE).toFormat("yyyy-MM-dd");
 };
 
 const checkTimers = async (clientInstance) => {
