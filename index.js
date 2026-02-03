@@ -71,15 +71,15 @@ const getTodayKey = () => {
 const checkTimers = async (clientInstance) => {
    const data = loadData();
    data.meta = data.meta || DEFAULT_META;
-   const now = new Date();
+   const now = DateTime.now().setZone(TIMEZONE);
    const timers = data.meta.timers || [];
    const timersCopy = [...timers];
 
    for (let i = timersCopy.length - 1; i >= 0; i--) {
       const timer = timersCopy[i];
-      const eventTime = new Date(timer.timestamp);
+      const eventTime = DateTime.fromISO(timer.timestamp).setZone(TIMEZONE);
 
-      const msUntilEvent = eventTime - now;
+      const msUntilEvent = eventTime.toMillis() - now.toMillis();
       const hoursUntil = msUntilEvent / (1000 * 60 * 60);
       const minutesUntil = msUntilEvent / (1000 * 60);
 
