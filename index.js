@@ -31,7 +31,7 @@ const DEFAULT_META = {
    timers: []
 };
 
-const DAILY_TASKS = [
+const DAILY_TASKS = [ //generate dailies
    { text: "Gacha Dailies", xp: 5 }
 ];
 
@@ -116,6 +116,9 @@ const checkTimers = async (clientInstance) => {
 };
 
 const runDailyTasks = async (clientInstance) => {
+   const now = DateTime.now().setZone(TIMEZONE).toFormat("yyyy-MM-dd HH:mm:ss");
+   console.log(`[${now}] runDailyTasks called`);
+   
    if (!DAILY_CHANNEL_ID) {
       console.log("Missing DAILY_CHANNEL_ID in .env. Skipping daily task post.");
       return;
@@ -125,9 +128,11 @@ const runDailyTasks = async (clientInstance) => {
    const todayKey = getTodayKey();
 
    if (data.meta?.lastDailyDate === todayKey) {
+      console.log(`Daily tasks already posted for ${todayKey}`);
       return;
    }
 
+   console.log(`Posting daily tasks for ${todayKey}`);
    data.meta = data.meta || {};
    data.meta.lastDailyDate = todayKey;
 
@@ -299,19 +304,25 @@ client.once("clientReady", () => {
          .catch((error) => console.error("Failed to send welcome message.", error));
    }
 
+   // Schedule daily tasks at 4:00 AM every day
+   console.log(`Daily tasks scheduled for 4:00 AM in timezone: ${TIMEZONE}`);
    cron.schedule(
       "0 4 * * *",
       () => {
+         const now = DateTime.now().setZone(TIMEZONE).toFormat("yyyy-MM-dd HH:mm:ss");
+         console.log(`[${now}] Daily cron triggered`);
          runDailyTasks(client);
       },
       { timezone: TIMEZONE }
    );
 
+   // Check timers every minute
    cron.schedule(
       "*/1 * * * *",
       () => {
          checkTimers(client);
-      }
+      },
+      { timezone: TIMEZONE }
    );
 });
 
